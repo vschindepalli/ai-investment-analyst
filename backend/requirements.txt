@@ -7,6 +7,7 @@ httpx==0.27.2
 supabase==2.7.4
 openai==1.51.0
 numpy==2.1.1
+pytest==8.3.3
 
 # --- ingestion (optional; only needed to run `python -m backend.ingest.run`) ---
 yfinance==1.3.0
