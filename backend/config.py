@@ -22,7 +22,9 @@ class Settings(BaseSettings):
     embedding_provider: str = os.getenv("EMBEDDING_PROVIDER", "ollama").lower()
     ollama_url: str = os.getenv("OLLAMA_URL", "http://localhost:11434")
     ollama_embed_model: str = os.getenv("OLLAMA_EMBED_MODEL", "embeddinggemma")
-    ollama_chat_model: str = os.getenv("OLLAMA_CHAT_MODEL", "qwen3.5:4b")
+    ollama_chat_model: str = os.getenv(
+        "OLLAMA_CHAT_MODEL", "gemini-3-flash-preview:latest"
+    )
 
     supabase_url: str | None = os.getenv("SUPABASE_URL") or None
     supabase_key: str | None = os.getenv("SUPABASE_KEY") or None
