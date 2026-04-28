@@ -30,12 +30,14 @@ def load() -> dict[str, Any]:
         with SNAPSHOT_PATH.open() as f:
             return json.load(f)
     except Exception:
+        #corrupt snapshot should not block api boot; fall back to empty.
         return {**EMPTY}
 
 
 def save(snapshot: dict[str, Any]) -> Path:
     snapshot["generated_at"] = datetime.now(timezone.utc).isoformat()
     SNAPSHOT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    #write temp then replace for atomic-ish updates.
     tmp = SNAPSHOT_PATH.with_suffix(".json.tmp")
     with tmp.open("w") as f:
         json.dump(snapshot, f, indent=2, default=str)
@@ -68,6 +70,7 @@ def merge(existing: dict[str, Any], fresh: dict[str, Any]) -> dict[str, Any]:
     upsert("stock_features", fresh.get("stock_features", []), "ticker")
 
     def append_dedup(key: str, rows: list[dict[str, Any]]) -> None:
+        #news uses headline while embeddings use text, so normalize both here.
         seen = {(r.get("ticker"), r.get("text") or r.get("headline")) for r in out.get(key) or []}
         current = list(out.get(key) or [])
         for r in rows:

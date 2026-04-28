@@ -42,6 +42,7 @@ def _to_chunk(c: dict[str, Any]) -> ContextChunk:
 
 def _meta() -> dict[str, Any]:
     s = get_settings()
+    #returned to frontend for debug/status badges.
     return {
         "llm": {
             "provider": "ollama",
@@ -78,6 +79,7 @@ def research_pipeline(
 ) -> QueryResponse:
     chunks = retrieve(query, top_k=top_k, tickers=tickers or None)
     explanation = llm_service.explain_research(query, chunks)
+    #confidence scales with best retrieved similarity.
     top_sim = max((c.get("similarity") or 0.0 for c in chunks), default=0.0)
     return QueryResponse(
         intent="RESEARCH",

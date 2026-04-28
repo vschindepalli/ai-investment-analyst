@@ -27,10 +27,12 @@ log = logging.getLogger(__name__)
 @lru_cache(maxsize=1)
 def _ollama_chat_http() -> httpx.Client:
     s = get_settings()
+    #shared client avoids reconnect overhead on every request.
     return httpx.Client(base_url=s.ollama_url, timeout=120.0)
 
 
 def _parse_json_object(raw: str) -> dict[str, Any]:
+    #some models wrap json in markdown fences; strip that first.
     s = raw.strip()
     if not s:
         return {}
@@ -43,6 +45,7 @@ def _parse_json_object(raw: str) -> dict[str, Any]:
         return out if isinstance(out, dict) else {}
     except json.JSONDecodeError:
         pass
+    #last fallback: try first outer json object in the response.
     i, j = s.find("{"), s.rfind("}")
     if i != -1 and j > i:
         try:
@@ -80,7 +83,7 @@ def _ollama_chat(
     except Exception as exc:  # noqa: BLE001
         log.warning("ollama chat failed: %s", exc)
 
-    # Retry without structured JSON flag (older servers or strict models).
+    #retry without json mode for models that reject format=json.
     if response_format_json:
         try:
             pl2 = dict(payload)
@@ -145,6 +148,7 @@ def explain_screening(query: str, ranked: list[dict[str, Any]]) -> str:
     text = chat_text(SCREENING_SYSTEM, payload)
     if text:
         return text
+    #template fallback keeps api responsive if model call fails.
     top = ranked[0]
     feats = top.get("features", {})
     return (

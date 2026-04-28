@@ -31,9 +31,11 @@ _NAME_TO_TICKER = {
 def _extract_tickers(query: str) -> list[str]:
     upper = query.upper()
     found: list[str] = []
+    #name mapping catches natural queries like "nvidia vs amd".
     for name, tkr in _NAME_TO_TICKER.items():
         if name in upper and tkr not in found:
             found.append(tkr)
+    #regex then captures explicit ticker symbols the name map may miss.
     for m in _TICKER_RE.findall(query):
         if m in _STOPWORDS:
             continue
@@ -68,6 +70,7 @@ def classify(query: str) -> dict[str, Any]:
 
     llm_out = chat_json(_SYSTEM, query)
     intent = (llm_out.get("intent") or "").upper() if llm_out else ""
+    #heuristics are the safety net when llm output is empty/invalid.
     if intent not in {"SCREENING", "RESEARCH", "COMPARISON"}:
         intent = _heuristic_intent(query, tickers)
 

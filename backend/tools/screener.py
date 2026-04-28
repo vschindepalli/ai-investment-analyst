@@ -18,6 +18,7 @@ WEIGHTS = {
 
 
 def compute_score(f: dict[str, float]) -> float:
+    #this must stay deterministic so scores are reproducible across runs.
     return (
         WEIGHTS["growth"] * f["growth"]
         + WEIGHTS["valuation"] * f["valuation"]
@@ -27,6 +28,7 @@ def compute_score(f: dict[str, float]) -> float:
 
 
 def _rationale(f: dict[str, float]) -> str:
+    #surface strongest and weakest dimensions to explain rank placement.
     ordered = sorted(f.items(), key=lambda kv: kv[1], reverse=True)
     top = ordered[0]
     bottom = ordered[-1]
@@ -49,5 +51,6 @@ def rank_stocks(
                 "rationale": _rationale(f),
             }
         )
+    #sort after rounding so what users see matches ordering.
     scored.sort(key=lambda x: x["score"], reverse=True)
     return scored[:top_k]
