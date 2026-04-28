@@ -42,7 +42,13 @@ def _to_chunk(c: dict[str, Any]) -> ContextChunk:
 
 def _meta() -> dict[str, Any]:
     s = get_settings()
-    return {"llm": s.has_openai, "supabase": s.has_supabase}
+    return {
+        "llm": {
+            "provider": "ollama",
+            "ollama_chat_model": s.ollama_chat_model,
+        },
+        "supabase": s.has_supabase,
+    }
 
 
 # ---------------------------------------------------------------------------

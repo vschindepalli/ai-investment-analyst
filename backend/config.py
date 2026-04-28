@@ -16,13 +16,13 @@ load_dotenv()
 
 class Settings(BaseSettings):
     openai_api_key: str | None = os.getenv("OPENAI_API_KEY") or None
-    openai_model: str = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
     openai_embed_model: str = os.getenv("OPENAI_EMBED_MODEL", "text-embedding-3-small")
 
     # Embedding provider: "ollama" (default, local), "openai", or "hash" (offline fallback).
     embedding_provider: str = os.getenv("EMBEDDING_PROVIDER", "ollama").lower()
     ollama_url: str = os.getenv("OLLAMA_URL", "http://localhost:11434")
     ollama_embed_model: str = os.getenv("OLLAMA_EMBED_MODEL", "embeddinggemma")
+    ollama_chat_model: str = os.getenv("OLLAMA_CHAT_MODEL", "qwen3.5:4b")
 
     supabase_url: str | None = os.getenv("SUPABASE_URL") or None
     supabase_key: str | None = os.getenv("SUPABASE_KEY") or None

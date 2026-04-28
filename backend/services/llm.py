@@ -1,68 +1,122 @@
-"""LLM layer — explanation only.
+"""LLM layer — explanation only (Ollama chat).
 
 Hard rule: this module NEVER computes scores or rankings. It converts
 structured scoring / RAG outputs into human-readable explanations.
 
-When no ``OPENAI_API_KEY`` is configured we fall back to a deterministic
-template so the system remains fully demoable offline.
+This project intentionally keeps chat minimal and local:
+  - Provider: Ollama
+  - Default model: qwen3.5:4b
+
+If Ollama is unavailable or returns invalid output, callers fall back to
+deterministic template text so the app remains demoable.
 """
 from __future__ import annotations
 
 import json
+import logging
+from functools import lru_cache
 from typing import Any
+
+import httpx
 
 from backend.config import get_settings
 
+log = logging.getLogger(__name__)
 
-def _openai_client():
-    settings = get_settings()
-    if not settings.has_openai:
-        return None
+
+@lru_cache(maxsize=1)
+def _ollama_chat_http() -> httpx.Client:
+    s = get_settings()
+    return httpx.Client(base_url=s.ollama_url, timeout=120.0)
+
+
+def _parse_json_object(raw: str) -> dict[str, Any]:
+    s = raw.strip()
+    if not s:
+        return {}
+    if s.startswith("```"):
+        s = s.strip("`")
+        if s.lower().startswith("json"):
+            s = s[4:].strip()
     try:
-        from openai import OpenAI  # type: ignore
-    except ImportError:
-        return None
-    return OpenAI(api_key=settings.openai_api_key)
+        out = json.loads(s)
+        return out if isinstance(out, dict) else {}
+    except json.JSONDecodeError:
+        pass
+    i, j = s.find("{"), s.rfind("}")
+    if i != -1 and j > i:
+        try:
+            out = json.loads(s[i : j + 1])
+            return out if isinstance(out, dict) else {}
+        except json.JSONDecodeError:
+            pass
+    return {}
+
+
+def _ollama_chat(
+    *,
+    messages: list[dict[str, str]],
+    temperature: float,
+    response_format_json: bool,
+) -> str | None:
+    s = get_settings()
+    payload: dict[str, Any] = {
+        "model": s.ollama_chat_model,
+        "messages": messages,
+        "stream": False,
+        "options": {"temperature": temperature},
+    }
+    if response_format_json:
+        payload["format"] = "json"
+
+    client = _ollama_chat_http()
+    try:
+        resp = client.post("/api/chat", json=payload)
+        resp.raise_for_status()
+        data = resp.json()
+        msg = (data.get("message") or {}) if isinstance(data, dict) else {}
+        content = msg.get("content")
+        return (content or "").strip() if isinstance(content, str) else None
+    except Exception as exc:  # noqa: BLE001
+        log.warning("ollama chat failed: %s", exc)
+
+    # Retry without structured JSON flag (older servers or strict models).
+    if response_format_json:
+        try:
+            pl2 = dict(payload)
+            del pl2["format"]
+            resp = client.post("/api/chat", json=pl2)
+            resp.raise_for_status()
+            data = resp.json()
+            msg = (data.get("message") or {}) if isinstance(data, dict) else {}
+            content = msg.get("content")
+            return (content or "").strip() if isinstance(content, str) else None
+        except Exception as exc:  # noqa: BLE001
+            log.warning("ollama chat retry failed: %s", exc)
+
+    return None
 
 
 def chat_json(system: str, user: str, *, temperature: float = 0.0) -> dict[str, Any]:
-    """Ask the LLM for a JSON object. Returns {} on any failure."""
-    client = _openai_client()
-    if client is None:
-        return {}
-    settings = get_settings()
-    try:
-        resp = client.chat.completions.create(
-            model=settings.openai_model,
-            temperature=temperature,
-            response_format={"type": "json_object"},
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
-        )
-        return json.loads(resp.choices[0].message.content or "{}")
-    except Exception:
-        return {}
+    messages = [
+        {"role": "system", "content": system},
+        {"role": "user", "content": user},
+    ]
+    text = _ollama_chat(
+        messages=messages,
+        temperature=temperature,
+        response_format_json=True,
+    )
+    return _parse_json_object(text or "")
 
 
 def chat_text(system: str, user: str, *, temperature: float = 0.2) -> str:
-    client = _openai_client()
-    if client is None:
-        return ""
-    settings = get_settings()
-    try:
-        resp = client.chat.completions.create(
-            model=settings.openai_model,
-            temperature=temperature,
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
-        )
-        return (resp.choices[0].message.content or "").strip()
-    except Exception:
-        return ""
+    messages = [
+        {"role": "system", "content": system},
+        {"role": "user", "content": user},
+    ]
+    text = _ollama_chat(messages=messages, temperature=temperature, response_format_json=False)
+    return (text or "").strip()
 
 
 SCREENING_SYSTEM = (

@@ -41,6 +41,10 @@ def health() -> dict[str, object]:
         "status": "ok",
         "openai": settings.has_openai,
         "supabase": settings.has_supabase,
+        "llm": {
+            "provider": "ollama",
+            "ollama_chat_model": settings.ollama_chat_model,
+        },
         "embeddings": {
             "provider": embedding_provider(),
             "dim": embed_dim(),

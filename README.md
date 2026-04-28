@@ -84,7 +84,7 @@ backend/
   features/
     builder.py            Raw metrics → normalized features
   services/
-    llm.py                Explanation-only LLM wrapper
+    llm.py                Explanation-only LLM wrapper (Ollama qwen3.5:4b)
     embeddings.py         OpenAI embeddings (+ offline hash fallback)
     supabase.py           Lazy Supabase client
   db/
@@ -133,10 +133,9 @@ curl -s -X POST http://localhost:8000/api/query \
   -d '{"query":"top AI growth stocks","top_k":3}' | jq
 ```
 
-### Embeddings (Ollama)
+### Embeddings
 
-Embeddings default to **local Ollama** running `embeddinggemma` (768d). Nothing
-leaves your machine. Install once:
+Embeddings default to **local Ollama** using `embeddinggemma` (768d). Install once:
 
 ```bash
 ollama pull embeddinggemma
@@ -150,16 +149,34 @@ OLLAMA_URL=http://localhost:11434
 OLLAMA_EMBED_MODEL=embeddinggemma
 ```
 
-`/health` reports the active provider, dim, and model. Changing providers
-requires re-ingesting (different output dims aren't cosine-comparable), and
-when you wire up Supabase you must match the `vector(N)` dim in
-`backend/sql/schema.sql` to the provider (**768** for embeddinggemma, 1536
-for `text-embedding-3-small`).
+`/health` reports the active provider, dimension, and model. If you change providers,
+re-ingest data because vectors with different dimensions are not comparable.
+When using Supabase, keep `vector(N)` in `backend/sql/schema.sql` aligned with
+the provider (**768** for `embeddinggemma`, **1536** for `text-embedding-3-small`).
+
+### Chat LLM
+
+Intent classification and explanations use local Ollama through
+`backend/services/llm.py`.
+
+Default setup:
+
+```env
+OLLAMA_CHAT_MODEL=qwen3.5:4b
+```
+
+Install once:
+
+```bash
+ollama pull qwen3.5:4b
+```
+
+No cloud LLM key is required for chat.
 
 ### Ingestion (real data, free)
 
 Populate `stocks` / `stock_features` / `news` / `embeddings` from Yahoo
-Finance, VADER, and OpenAI embeddings (or the hash fallback):
+Finance, VADER, and Ollama embeddings (or OpenAI/hash depending on config):
 
 ```bash
 source backend/.venv/bin/activate
@@ -201,14 +218,10 @@ npm run dev                          # http://localhost:3000
 The frontend calls its own `/api/query` route which transparently proxies to
 the FastAPI backend, so there are no CORS considerations in dev.
 
-Without `OPENAI_API_KEY` / Supabase creds the backend runs on:
-
-- an **in-repo mock universe** (6 large-cap tickers)
-- a **deterministic hash embedding** for RAG
-- a **template explainer** (no LLM call)
-
-Add the keys in `.env` to switch each layer to its real implementation with
-zero code changes.
+Without Supabase credentials or a full data snapshot, the backend can run on mock
+fixtures. Embeddings default to local Ollama (`embeddinggemma`). The chat layer
+uses `OLLAMA_CHAT_MODEL=qwen3.5:4b`. If Ollama is unavailable, explanations
+fall back to deterministic templates.
 
 ---
 
@@ -242,7 +255,13 @@ Response:
   ],
   "explanation": "...",
   "confidence": 0.75,
-  "meta": { "llm": true, "supabase": true }
+  "meta": {
+    "llm": {
+      "provider": "ollama",
+      "ollama_chat_model": "qwen3.5:4b"
+    },
+    "supabase": true
+  }
 }
 ```
 
