@@ -50,9 +50,16 @@ def _heuristic_intent(query: str, tickers: list[str]) -> str:
     compare_cues = (" vs ", " versus ", "compare", "or better", "better than")
     if any(c in q for c in compare_cues) or len(tickers) >= 2:
         return "COMPARISON"
+    screening_cues = (
+        "top ", "best ", "screen", "screener", "rank", "growth stock",
+        "growth stocks", "stocks with", "undervalued", "momentum",
+        "high growth", "stocks right now",
+    )
+    if any(c in q for c in screening_cues):
+        return "SCREENING"
     research_cues = (
-        "why", "how", "what", "news", "earnings", "filing", "risk", "explain",
-        "tell me about",
+        "why ", "how ", "news", "earnings", "filing", "risk", "explain",
+        "tell me about", "what is ", "what are ",
     )
     if any(c in q for c in research_cues):
         return "RESEARCH"
@@ -71,9 +78,13 @@ def classify(query: str) -> dict[str, Any]:
 
     llm_out = chat_json(_SYSTEM, query)
     intent = (llm_out.get("intent") or "").upper() if llm_out else ""
+    heuristic = _heuristic_intent(query, tickers)
     #heuristics are the safety net when llm output is empty/invalid.
     if intent not in {"SCREENING", "RESEARCH", "COMPARISON"}:
-        intent = _heuristic_intent(query, tickers)
+        intent = heuristic
+    #rank/screen queries are often mislabeled RESEARCH by the chat model.
+    elif intent == "RESEARCH" and heuristic == "SCREENING":
+        intent = heuristic
 
     llm_tickers = llm_out.get("tickers") or []
     if isinstance(llm_tickers, list):

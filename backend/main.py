@@ -45,6 +45,7 @@ def health() -> dict[str, object]:
             "provider": "ollama",
             "ollama_chat_model": settings.ollama_chat_model,
             "enabled": settings.ollama_chat_enabled,
+            "think": settings.ollama_chat_think,
             "timeout_sec": settings.ollama_chat_timeout,
             "num_predict": settings.ollama_chat_num_predict,
         },

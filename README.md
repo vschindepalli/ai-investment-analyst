@@ -84,7 +84,7 @@ backend/
   features/
     builder.py            Raw metrics → normalized features
   services/
-    llm.py                Explanation-only LLM wrapper (Ollama qwen3.5:4b)
+    llm.py                Explanation-only LLM wrapper (Ollama gemma4:e2b-mlx)
     embeddings.py         OpenAI embeddings (+ offline hash fallback)
     supabase.py           Lazy Supabase client
   db/
@@ -174,15 +174,16 @@ writes short explanations. If Ollama is slow or offline, the API falls back to
 template text within `OLLAMA_CHAT_TIMEOUT` seconds (default 45).
 
 ```env
-OLLAMA_CHAT_MODEL=gemini-3-flash-preview:latest
+OLLAMA_CHAT_MODEL=gemma4:e2b-mlx
+OLLAMA_CHAT_THINK=false
 OLLAMA_CHAT_TIMEOUT=45
 OLLAMA_CHAT_NUM_PREDICT=256
 OLLAMA_CHAT_ENABLED=true
 ```
 
-Install your model once, e.g. `ollama pull gemini-3-flash-preview:latest`. For
-faster responses on modest hardware, try `qwen2.5:3b` instead. Set
-`OLLAMA_CHAT_ENABLED=false` to use templates only (no Ollama calls).
+Install your model once: `ollama pull gemma4:e2b-mlx`. Set `OLLAMA_CHAT_THINK=false`
+(default) so Gemma returns the final answer only, not a visible reasoning trace.
+Set `OLLAMA_CHAT_ENABLED=false` to use templates only (no Ollama calls).
 
 ### Ingestion (real data, free)
 
@@ -231,7 +232,7 @@ the FastAPI backend, so there are no CORS considerations in dev.
 
 Without Supabase credentials or a full data snapshot, the backend can run on mock
 fixtures. Embeddings default to local Ollama (`embeddinggemma`). The chat layer
-uses `OLLAMA_CHAT_MODEL=qwen3.5:4b`. If Ollama is unavailable, explanations
+uses `OLLAMA_CHAT_MODEL=gemma4:e2b-mlx`. If Ollama is unavailable, explanations
 fall back to deterministic templates.
 
 ---
@@ -269,7 +270,8 @@ Response:
   "meta": {
     "llm": {
       "provider": "ollama",
-      "ollama_chat_model": "qwen3.5:4b"
+      "ollama_chat_model": "gemma4:e2b-mlx",
+      "explanation_source": "ollama"
     },
     "supabase": true
   }

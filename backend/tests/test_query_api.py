@@ -51,6 +51,7 @@ def _assert_query_contract(data: dict, *, expected_intent: str | None = None) ->
     assert isinstance(meta, dict)
     assert meta.get("llm", {}).get("provider") == "ollama"
     assert isinstance(meta.get("llm", {}).get("ollama_chat_model"), str)
+    assert meta.get("llm", {}).get("explanation_source") == "ollama"
 
     for row in data["results"]:
         assert isinstance(row["ticker"], str) and row["ticker"]

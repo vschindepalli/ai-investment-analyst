@@ -47,6 +47,7 @@ def _meta() -> dict[str, Any]:
         "llm": {
             "provider": "ollama",
             "ollama_chat_model": s.ollama_chat_model,
+            "explanation_source": llm_service.explanation_source(),
         },
         "supabase": s.has_supabase,
     }

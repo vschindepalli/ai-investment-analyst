@@ -23,12 +23,18 @@ class Settings(BaseSettings):
     ollama_url: str = os.getenv("OLLAMA_URL", "http://localhost:11434")
     ollama_embed_model: str = os.getenv("OLLAMA_EMBED_MODEL", "embeddinggemma")
     ollama_chat_model: str = os.getenv(
-        "OLLAMA_CHAT_MODEL", "gemini-3-flash-preview:latest"
+        "OLLAMA_CHAT_MODEL", "gemma4:e2b-mlx"
     )
     #keep chat calls short so /api/query returns quickly; templates fill gaps on timeout.
     ollama_chat_timeout: float = float(os.getenv("OLLAMA_CHAT_TIMEOUT", "45"))
     ollama_chat_num_predict: int = int(os.getenv("OLLAMA_CHAT_NUM_PREDICT", "256"))
     ollama_chat_enabled: bool = os.getenv("OLLAMA_CHAT_ENABLED", "true").lower() in {
+        "1",
+        "true",
+        "yes",
+    }
+    #gemma4 and other reasoning models: false = answer only, no thinking trace.
+    ollama_chat_think: bool = os.getenv("OLLAMA_CHAT_THINK", "false").lower() in {
         "1",
         "true",
         "yes",

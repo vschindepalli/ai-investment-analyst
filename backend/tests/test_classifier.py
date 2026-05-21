@@ -29,6 +29,24 @@ def test_heuristic_intent_for_research_cues() -> None:
     assert intent == "RESEARCH"
 
 
+def test_heuristic_intent_for_screening_cues() -> None:
+    intent = classifier._heuristic_intent("top AI growth stocks", [])
+
+    assert intent == "SCREENING"
+
+
+def test_classify_overrides_llm_research_for_screening_query(monkeypatch) -> None:
+    monkeypatch.setattr(
+        classifier,
+        "chat_json",
+        lambda *_args, **_kwargs: {"intent": "research", "tickers": []},
+    )
+
+    out = classifier.classify("top AI growth stocks")
+
+    assert out["intent"] == "SCREENING"
+
+
 def test_classify_falls_back_to_heuristics_when_llm_empty(monkeypatch) -> None:
     monkeypatch.setattr(classifier, "chat_json", lambda *_args, **_kwargs: {})
 
