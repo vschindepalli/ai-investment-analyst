@@ -169,21 +169,20 @@ the provider (**768** for `embeddinggemma`, **1536** for `text-embedding-3-small
 ### Chat LLM
 
 Intent classification and explanations use local Ollama through
-`backend/services/llm.py`.
-
-Default setup:
+`backend/services/llm.py`. Scores are always deterministic; the LLM only
+writes short explanations. If Ollama is slow or offline, the API falls back to
+template text within `OLLAMA_CHAT_TIMEOUT` seconds (default 45).
 
 ```env
-OLLAMA_CHAT_MODEL=qwen3.5:4b
+OLLAMA_CHAT_MODEL=gemini-3-flash-preview:latest
+OLLAMA_CHAT_TIMEOUT=45
+OLLAMA_CHAT_NUM_PREDICT=256
+OLLAMA_CHAT_ENABLED=true
 ```
 
-Install once:
-
-```bash
-ollama pull qwen3.5:4b
-```
-
-No cloud LLM key is required for chat.
+Install your model once, e.g. `ollama pull gemini-3-flash-preview:latest`. For
+faster responses on modest hardware, try `qwen2.5:3b` instead. Set
+`OLLAMA_CHAT_ENABLED=false` to use templates only (no Ollama calls).
 
 ### Ingestion (real data, free)
 

@@ -3,18 +3,13 @@
 Hard rule: this module NEVER computes scores or rankings. It converts
 structured scoring / RAG outputs into human-readable explanations.
 
-This project intentionally keeps chat minimal and local:
-  - Provider: Ollama
-  - Default model: qwen3.5:4b
-
-If Ollama is unavailable or returns invalid output, callers fall back to
-deterministic template text so the app remains demoable.
+Provider: local Ollama (`OLLAMA_CHAT_MODEL`). On timeout or failure, callers
+use deterministic templates so the API stays responsive.
 """
 from __future__ import annotations
 
 import json
 import logging
-from functools import lru_cache
 from typing import Any
 
 import httpx
@@ -23,12 +18,20 @@ from backend.config import get_settings
 
 log = logging.getLogger(__name__)
 
+_BRIEF = "Reply in at most 4 short sentences. Do not show chain-of-thought."
 
-@lru_cache(maxsize=1)
-def _ollama_chat_http() -> httpx.Client:
+
+def _ollama_client() -> httpx.Client:
     s = get_settings()
-    #shared client avoids reconnect overhead on every request.
-    return httpx.Client(base_url=s.ollama_url, timeout=120.0)
+    return httpx.Client(base_url=s.ollama_url, timeout=s.ollama_chat_timeout)
+
+
+def _ollama_options(temperature: float) -> dict[str, Any]:
+    s = get_settings()
+    return {
+        "temperature": temperature,
+        "num_predict": s.ollama_chat_num_predict,
+    }
 
 
 def _parse_json_object(raw: str) -> dict[str, Any]:
@@ -45,7 +48,6 @@ def _parse_json_object(raw: str) -> dict[str, Any]:
         return out if isinstance(out, dict) else {}
     except json.JSONDecodeError:
         pass
-    #last fallback: try first outer json object in the response.
     i, j = s.find("{"), s.rfind("}")
     if i != -1 and j > i:
         try:
@@ -56,6 +58,35 @@ def _parse_json_object(raw: str) -> dict[str, Any]:
     return {}
 
 
+def _trim_ranked(ranked: list[dict[str, Any]], limit: int = 5) -> list[dict[str, Any]]:
+    slim: list[dict[str, Any]] = []
+    for row in ranked[:limit]:
+        slim.append(
+            {
+                "ticker": row.get("ticker"),
+                "score": row.get("score"),
+                "features": row.get("features"),
+                "rationale": row.get("rationale"),
+            }
+        )
+    return slim
+
+
+def _trim_chunks(chunks: list[dict[str, Any]], limit: int = 5) -> list[dict[str, Any]]:
+    slim: list[dict[str, Any]] = []
+    for c in chunks[:limit]:
+        text = (c.get("text") or "")[:280]
+        slim.append(
+            {
+                "source": c.get("source"),
+                "ticker": c.get("ticker"),
+                "text": text,
+                "similarity": c.get("similarity"),
+            }
+        )
+    return slim
+
+
 def _ollama_chat(
     *,
     messages: list[dict[str, str]],
@@ -63,16 +94,19 @@ def _ollama_chat(
     response_format_json: bool,
 ) -> str | None:
     s = get_settings()
+    if not s.ollama_chat_enabled:
+        return None
+
     payload: dict[str, Any] = {
         "model": s.ollama_chat_model,
         "messages": messages,
         "stream": False,
-        "options": {"temperature": temperature},
+        "options": _ollama_options(temperature),
     }
     if response_format_json:
         payload["format"] = "json"
 
-    client = _ollama_chat_http()
+    client = _ollama_client()
     try:
         resp = client.post("/api/chat", json=payload)
         resp.raise_for_status()
@@ -83,7 +117,6 @@ def _ollama_chat(
     except Exception as exc:  # noqa: BLE001
         log.warning("ollama chat failed: %s", exc)
 
-    #retry without json mode for models that reject format=json.
     if response_format_json:
         try:
             pl2 = dict(payload)
@@ -102,7 +135,7 @@ def _ollama_chat(
 
 def chat_json(system: str, user: str, *, temperature: float = 0.0) -> dict[str, Any]:
     messages = [
-        {"role": "system", "content": system},
+        {"role": "system", "content": f"{system} {_BRIEF}"},
         {"role": "user", "content": user},
     ]
     text = _ollama_chat(
@@ -115,7 +148,7 @@ def chat_json(system: str, user: str, *, temperature: float = 0.0) -> dict[str, 
 
 def chat_text(system: str, user: str, *, temperature: float = 0.2) -> str:
     messages = [
-        {"role": "system", "content": system},
+        {"role": "system", "content": f"{system} {_BRIEF}"},
         {"role": "user", "content": user},
     ]
     text = _ollama_chat(messages=messages, temperature=temperature, response_format_json=False)
@@ -140,15 +173,16 @@ COMPARISON_SYSTEM = (
     "and risks. Do not recompute numbers."
 )
 
-
 def explain_screening(query: str, ranked: list[dict[str, Any]]) -> str:
     if not ranked:
         return "No stocks matched the scoring criteria."
-    payload = json.dumps({"query": query, "ranked": ranked}, default=float)
+    payload = json.dumps(
+        {"query": query, "ranked": _trim_ranked(ranked)},
+        default=float,
+    )
     text = chat_text(SCREENING_SYSTEM, payload)
     if text:
         return text
-    #template fallback keeps api responsive if model call fails.
     top = ranked[0]
     feats = top.get("features", {})
     return (
@@ -164,7 +198,10 @@ def explain_screening(query: str, ranked: list[dict[str, Any]]) -> str:
 def explain_research(query: str, chunks: list[dict[str, Any]]) -> str:
     if not chunks:
         return "No relevant context was retrieved for this query."
-    payload = json.dumps({"query": query, "context": chunks}, default=float)
+    payload = json.dumps(
+        {"query": query, "context": _trim_chunks(chunks)},
+        default=float,
+    )
     text = chat_text(RESEARCH_SYSTEM, payload)
     if text:
         return text
@@ -178,7 +215,12 @@ def explain_comparison(
     chunks: list[dict[str, Any]],
 ) -> str:
     payload = json.dumps(
-        {"query": query, "ranked": ranked, "context": chunks}, default=float
+        {
+            "query": query,
+            "ranked": _trim_ranked(ranked, limit=2),
+            "context": _trim_chunks(chunks, limit=4),
+        },
+        default=float,
     )
     text = chat_text(COMPARISON_SYSTEM, payload)
     if text:

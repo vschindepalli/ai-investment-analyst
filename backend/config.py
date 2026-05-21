@@ -25,6 +25,14 @@ class Settings(BaseSettings):
     ollama_chat_model: str = os.getenv(
         "OLLAMA_CHAT_MODEL", "gemini-3-flash-preview:latest"
     )
+    #keep chat calls short so /api/query returns quickly; templates fill gaps on timeout.
+    ollama_chat_timeout: float = float(os.getenv("OLLAMA_CHAT_TIMEOUT", "45"))
+    ollama_chat_num_predict: int = int(os.getenv("OLLAMA_CHAT_NUM_PREDICT", "256"))
+    ollama_chat_enabled: bool = os.getenv("OLLAMA_CHAT_ENABLED", "true").lower() in {
+        "1",
+        "true",
+        "yes",
+    }
 
     supabase_url: str | None = os.getenv("SUPABASE_URL") or None
     supabase_key: str | None = os.getenv("SUPABASE_KEY") or None
