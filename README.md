@@ -133,6 +133,18 @@ curl -s -X POST http://localhost:8000/api/query \
   -d '{"query":"top AI growth stocks","top_k":3}' | jq
 ```
 
+### Tests
+
+From the repo root (with `backend/.venv` activated):
+
+```bash
+source backend/.venv/bin/activate
+pip install -r backend/requirements.txt   # includes pytest
+python -m pytest backend/tests -q
+```
+
+No Ollama server is required — API tests stub the LLM layer.
+
 ### Embeddings
 
 Embeddings default to **local Ollama** using `embeddinggemma` (768d). Install once:
