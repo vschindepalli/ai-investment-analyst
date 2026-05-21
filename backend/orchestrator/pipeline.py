@@ -50,6 +50,7 @@ def _meta() -> dict[str, Any]:
             "explanation_source": llm_service.explanation_source(),
         },
         "supabase": s.has_supabase,
+        "allow_mock_fallback": s.allow_mock_fallback,
     }
 
 

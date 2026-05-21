@@ -14,6 +14,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from backend.config import get_settings
 from backend.db.client import get_client
 
 # ---------------------------------------------------------------------------
@@ -179,11 +180,15 @@ def _fetch_mock(tickers: list[str] | None) -> list[RawStock]:
 
 def fetch_raw(tickers: list[str] | None = None) -> list[RawStock]:
     """Fetch raw stock rows — Supabase, then local snapshot, then mock."""
-    return (
-        _fetch_from_supabase(tickers)
-        or _fetch_from_snapshot(tickers)
-        or _fetch_mock(tickers)
-    )
+    rows = _fetch_from_supabase(tickers) or _fetch_from_snapshot(tickers)
+    if rows:
+        return rows
+    if not get_settings().allow_mock_fallback:
+        raise ValueError(
+            "No stock data found. Run: python -m backend.ingest.run --refresh all "
+            "(or set SUPABASE_URL/SUPABASE_KEY and ingest)."
+        )
+    return _fetch_mock(tickers)
 
 
 # ---------------------------------------------------------------------------

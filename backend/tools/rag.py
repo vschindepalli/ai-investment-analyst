@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from backend.config import get_settings
 from backend.db.client import get_client
 from backend.services.embeddings import cosine, embed
 
@@ -161,8 +162,11 @@ def retrieve(
     query: str, top_k: int = 5, tickers: list[str] | None = None
 ) -> list[dict[str, Any]]:
     query_vec = embed(query)
-    return (
-        _search_supabase(query_vec, top_k)
-        or _search_snapshot(query_vec, top_k, tickers)
-        or _search_mock(query_vec, top_k, tickers)
+    hits = _search_supabase(query_vec, top_k) or _search_snapshot(
+        query_vec, top_k, tickers
     )
+    if hits:
+        return hits
+    if not get_settings().allow_mock_fallback:
+        return []
+    return _search_mock(query_vec, top_k, tickers)

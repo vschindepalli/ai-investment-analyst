@@ -42,6 +42,12 @@ class Settings(BaseSettings):
 
     supabase_url: str | None = os.getenv("SUPABASE_URL") or None
     supabase_key: str | None = os.getenv("SUPABASE_KEY") or None
+    #when false, api uses only supabase or ingested snapshot — no in-repo mock universe.
+    allow_mock_fallback: bool = os.getenv("ALLOW_MOCK_FALLBACK", "true").lower() in {
+        "1",
+        "true",
+        "yes",
+    }
 
     allowed_origins: str = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000")
 

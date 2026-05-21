@@ -280,13 +280,57 @@ Response:
 
 ---
 
-## Supabase setup (when ready)
+## Real data (stop using mocks)
 
-1. Create a project, enable the `pgvector` extension.
-2. Run `backend/sql/schema.sql` in the SQL editor.
-3. Set `SUPABASE_URL` and `SUPABASE_KEY` in `.env`.
-4. Populate `stocks` + `stock_features` via your ingestion job.
-5. Populate `embeddings` (chunk → vector) for RAG.
+Resolution order today:
+
+| Layer | Order |
+|-------|--------|
+| **Features / scores** | Supabase → `backend/data/snapshot.json` → mock universe |
+| **RAG** | Supabase `match_embeddings` → snapshot embeddings → mock corpus |
+
+### Phase A — Real data locally (no Supabase yet)
+
+1. Ollama running (`embeddinggemma` for ingest embeddings).
+2. From repo root with venv active:
+
+```bash
+python -m backend.ingest.run --refresh all
+# or start small:
+python -m backend.ingest.run --refresh all --tickers NVDA,AMD,AAPL,META,AMZN
+```
+
+3. Confirm `backend/data/snapshot.json` exists (Yahoo fundamentals, prices, news, vectors).
+4. In `backend/.env`: `ALLOW_MOCK_FALLBACK=false` and restart uvicorn.
+5. `/health` → `meta.allow_mock_fallback: false`. Queries use snapshot only.
+
+### Phase B — Supabase as the database
+
+1. Create a [Supabase](https://supabase.com) project.
+2. SQL editor → run `backend/sql/schema.sql` (enables `pgvector`).
+3. Project Settings → API → copy URL + **service role** or anon key (service role for ingest writes).
+4. `backend/.env`:
+
+```env
+SUPABASE_URL=https://xxxx.supabase.co
+SUPABASE_KEY=your-key
+ALLOW_MOCK_FALLBACK=false
+```
+
+5. Ingest (writes snapshot **and** Supabase when creds are set):
+
+```bash
+python -m backend.ingest.run --refresh all
+```
+
+6. `/health` → `"supabase": true`. Features and RAG read from Postgres first.
+
+### Phase C — Production habits
+
+- Re-run ingest on a schedule (cron) for fresh prices/news.
+- Never use `--dry-run` in prod (that writes mock data).
+- Keep snapshot as a backup/cache even with Supabase.
+- Expand `backend/ingest/universe.py` for more tickers.
 
 ---
 
