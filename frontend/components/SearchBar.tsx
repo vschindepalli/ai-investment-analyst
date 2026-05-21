@@ -10,7 +10,7 @@ interface Props {
 
 const EXAMPLES = [
   "Top AI growth stocks right now",
-  "Compare NVDA vs TSLA for AI exposure",
+  "Compare NVDA vs AMD for AI exposure",
   "Why is META rallying?",
   "Undervalued large-cap tech with momentum",
 ];

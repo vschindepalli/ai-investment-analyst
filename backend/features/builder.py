@@ -93,6 +93,30 @@ _MOCK_UNIVERSE: list[dict[str, Any]] = [
         "return_3m": -0.05,
         "sentiment_score": 0.40,
     },
+    {
+        "ticker": "AMD",
+        "name": "Advanced Micro Devices, Inc.",
+        "revenue_growth": 0.18,
+        "eps_growth": 0.25,
+        "operating_margin": 0.22,
+        "pe_ratio": 45.0,
+        "peg_ratio": 1.8,
+        "rsi": 62.0,
+        "return_3m": 0.11,
+        "sentiment_score": 0.62,
+    },
+    {
+        "ticker": "AMZN",
+        "name": "Amazon.com, Inc.",
+        "revenue_growth": 0.11,
+        "eps_growth": 0.45,
+        "operating_margin": 0.11,
+        "pe_ratio": 38.0,
+        "peg_ratio": 2.4,
+        "rsi": 57.0,
+        "return_3m": 0.07,
+        "sentiment_score": 0.59,
+    },
 ]
 
 

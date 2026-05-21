@@ -68,6 +68,22 @@ _MOCK_CORPUS: list[dict[str, Any]] = [
             "despite competitive pressure from generative AI answer engines."
         ),
     },
+    {
+        "source": "news",
+        "ticker": "AMD",
+        "text": (
+            "AMD gained data-center GPU share in AI inference workloads while "
+            "PC client demand remained mixed; investors watch MI300 ramp cadence."
+        ),
+    },
+    {
+        "source": "earnings",
+        "ticker": "AMZN",
+        "text": (
+            "Amazon Web Services grew on enterprise cloud adoption; retail "
+            "margins improved on logistics efficiency and advertising mix."
+        ),
+    },
 ]
 
 

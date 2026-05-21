@@ -25,6 +25,7 @@ _NAME_TO_TICKER = {
     "NVIDIA": "NVDA", "APPLE": "AAPL", "MICROSOFT": "MSFT",
     "GOOGLE": "GOOGL", "ALPHABET": "GOOGL", "META": "META",
     "FACEBOOK": "META", "TESLA": "TSLA", "AMAZON": "AMZN",
+    "AMD": "AMD",
 }
 
 
